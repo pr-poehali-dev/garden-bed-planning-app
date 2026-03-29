@@ -1,0 +1,10 @@
+{
+  "tests": [
+    {
+      "name": "GET plants list",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200
+    }
+  ]
+}

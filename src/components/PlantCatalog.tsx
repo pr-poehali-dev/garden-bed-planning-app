@@ -1,32 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
-
-type Plant = {
-  id: number;
-  emoji: string;
-  name: string;
-  category: string;
-  season: string;
-  watering: string;
-  spacing: string;
-  sunlight: string;
-  maturity: string;
-  tips: string;
-  color: string;
-};
-
-const DEFAULT_CATALOG: Plant[] = [
-  { id: 1, emoji: "🍅", name: "Томаты", category: "Овощи", season: "Апр – Авг", watering: "Каждые 2-3 дня", spacing: "50-70 см", sunlight: "Полное солнце", maturity: "60-80 дней", tips: "Подвязывайте к опорам, удаляйте пасынки", color: "#c0392b" },
-  { id: 2, emoji: "🥕", name: "Морковь", category: "Корнеплоды", season: "Мар – Июн", watering: "Раз в 3-4 дня", spacing: "5-10 см", sunlight: "Полное солнце", maturity: "70-80 дней", tips: "Рыхлите почву на глубину 30 см перед посевом", color: "#e67e22" },
-  { id: 3, emoji: "🥬", name: "Салат", category: "Зелень", season: "Мар – Май", watering: "Ежедневно", spacing: "20-30 см", sunlight: "Полутень", maturity: "30-45 дней", tips: "Срезайте внешние листья для непрерывного роста", color: "#27ae60" },
-  { id: 4, emoji: "🥒", name: "Огурцы", category: "Овощи", season: "Май – Авг", watering: "Каждые 2 дня", spacing: "30-60 см", sunlight: "Полное солнце", maturity: "50-60 дней", tips: "Опыляются насекомыми, высаживайте рядом с цветами", color: "#2ecc71" },
-  { id: 5, emoji: "🧅", name: "Лук", category: "Корнеплоды", season: "Апр – Июн", watering: "Раз в неделю", spacing: "10-15 см", sunlight: "Полное солнце", maturity: "90-120 дней", tips: "Прекращайте полив за 2 недели до уборки", color: "#9b59b6" },
-  { id: 6, emoji: "🌽", name: "Кукуруза", category: "Злаки", season: "Май – Июл", watering: "Каждые 3 дня", spacing: "30-40 см", sunlight: "Полное солнце", maturity: "80-100 дней", tips: "Сажайте блоками для лучшего опыления", color: "#f1c40f" },
-  { id: 7, emoji: "🫑", name: "Перец", category: "Овощи", season: "Май – Сен", watering: "Каждые 2-3 дня", spacing: "40-50 см", sunlight: "Полное солнце", maturity: "70-90 дней", tips: "Не переувлажняйте — любит тепло и солнце", color: "#e74c3c" },
-  { id: 8, emoji: "🥦", name: "Брокколи", category: "Овощи", season: "Мар – Май", watering: "Каждые 2 дня", spacing: "45-60 см", sunlight: "Полутень", maturity: "60-80 дней", tips: "Собирайте до цветения, пока головки плотные", color: "#1a7a4a" },
-  { id: 9, emoji: "🌿", name: "Базилик", category: "Зелень", season: "Май – Авг", watering: "Ежедневно", spacing: "20-30 см", sunlight: "Полное солнце", maturity: "25-30 дней", tips: "Прищипывайте цветоносы для пышного куста", color: "#45b39d" },
-  { id: 10, emoji: "🫛", name: "Горох", category: "Бобовые", season: "Апр – Июн", watering: "Раз в 2-3 дня", spacing: "5-10 см", sunlight: "Полное солнце", maturity: "55-70 дней", tips: "Нуждается в опорах, обогащает почву азотом", color: "#58d68d" },
-];
+import { fetchPlants, createPlant, updatePlant, deletePlant, type Plant, type PlantInput } from "@/api/plants";
 
 const CATEGORIES = ["Все", "Овощи", "Корнеплоды", "Зелень", "Злаки", "Бобовые"];
 const COLORS = ["#c0392b","#e67e22","#27ae60","#2ecc71","#9b59b6","#f1c40f","#e74c3c","#1a7a4a","#45b39d","#58d68d","#3498db","#e91e63"];
@@ -34,18 +8,27 @@ const EMOJIS = ["🍅","🥕","🥬","🥒","🧅","🌽","🫑","🥦","🌿","
 
 type ModalMode = "view" | "edit" | "add";
 
-const emptyPlant = (): Omit<Plant, "id"> => ({
-  emoji: "🌱", name: "", category: "Овощи", season: "", watering: "", spacing: "", sunlight: "Полное солнце", maturity: "", tips: "", color: "#27ae60"
+const emptyForm = (): PlantInput => ({
+  emoji: "🌱", name: "", category: "Овощи", season: "", watering: "",
+  spacing: "", sunlight: "Полное солнце", maturity: "", tips: "", color: "#27ae60"
 });
 
 export default function PlantCatalog() {
-  const [catalog, setCatalog] = useState<Plant[]>(DEFAULT_CATALOG);
+  const [catalog, setCatalog] = useState<Plant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("Все");
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
   const [modalMode, setModalMode] = useState<ModalMode>("view");
-  const [formData, setFormData] = useState<Omit<Plant, "id">>(emptyPlant());
+  const [formData, setFormData] = useState<PlantInput>(emptyForm());
   const [search, setSearch] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  useEffect(() => {
+    fetchPlants()
+      .then(setCatalog)
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = catalog.filter(p =>
     (selectedCategory === "Все" || p.category === selectedCategory) &&
@@ -66,7 +49,7 @@ export default function PlantCatalog() {
 
   const openAdd = () => {
     setSelectedPlant(null);
-    setFormData(emptyPlant());
+    setFormData(emptyForm());
     setModalMode("add");
   };
 
@@ -76,26 +59,34 @@ export default function PlantCatalog() {
     setShowDeleteConfirm(false);
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!formData.name || !selectedPlant) return;
+    setSaving(true);
+    await updatePlant(selectedPlant.id, formData);
     setCatalog(prev => prev.map(p => p.id === selectedPlant.id ? { ...formData, id: selectedPlant.id } : p));
+    setSaving(false);
     closeModal();
   };
 
-  const saveAdd = () => {
+  const saveAdd = async () => {
     if (!formData.name) return;
-    const newPlant: Plant = { ...formData, id: Date.now() };
-    setCatalog(prev => [...prev, newPlant]);
+    setSaving(true);
+    const { id } = await createPlant(formData);
+    setCatalog(prev => [...prev, { ...formData, id }]);
+    setSaving(false);
     closeModal();
   };
 
-  const deletePlant = () => {
+  const handleDelete = async () => {
     if (!selectedPlant) return;
+    setSaving(true);
+    await deletePlant(selectedPlant.id);
     setCatalog(prev => prev.filter(p => p.id !== selectedPlant.id));
+    setSaving(false);
     closeModal();
   };
 
-  const field = (label: string, key: keyof Omit<Plant, "id" | "emoji" | "color">, placeholder?: string) => (
+  const field = (label: string, key: keyof PlantInput, placeholder?: string) => (
     <div>
       <label className="text-xs font-body text-muted-foreground mb-1 block">{label}</label>
       <input
@@ -147,33 +138,48 @@ export default function PlantCatalog() {
         ))}
       </div>
 
-      {/* Plant cards */}
-      <div className="grid grid-cols-2 gap-3">
-        {filtered.map(plant => (
-          <button
-            key={plant.id}
-            onClick={() => openView(plant)}
-            className="bg-card border border-border rounded-2xl p-4 text-left hover:shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3" style={{ backgroundColor: plant.color + "22" }}>
-              {plant.emoji}
+      {/* Loading */}
+      {loading && (
+        <div className="grid grid-cols-2 gap-3">
+          {[1,2,3,4].map(i => (
+            <div key={i} className="bg-card border border-border rounded-2xl p-4 animate-pulse">
+              <div className="w-12 h-12 rounded-xl bg-muted mb-3" />
+              <div className="h-4 bg-muted rounded w-3/4 mb-2" />
+              <div className="h-3 bg-muted rounded w-1/2" />
             </div>
-            <p className="font-display text-base font-semibold text-foreground">{plant.name}</p>
-            <p className="text-xs text-muted-foreground font-body mt-0.5">{plant.category}</p>
-            <div className="mt-2 flex items-center gap-1">
-              <Icon name="Calendar" size={11} className="text-muted-foreground" />
-              <span className="text-[11px] font-body text-muted-foreground">{plant.season}</span>
-            </div>
-          </button>
-        ))}
+          ))}
+        </div>
+      )}
 
-        {filtered.length === 0 && (
-          <div className="col-span-2 bg-card border border-dashed border-border rounded-2xl p-8 text-center">
-            <span className="text-3xl block mb-2">🌱</span>
-            <p className="text-sm font-body text-muted-foreground">Ничего не найдено</p>
-          </div>
-        )}
-      </div>
+      {/* Plant cards */}
+      {!loading && (
+        <div className="grid grid-cols-2 gap-3">
+          {filtered.map(plant => (
+            <button
+              key={plant.id}
+              onClick={() => openView(plant)}
+              className="bg-card border border-border rounded-2xl p-4 text-left hover:shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3" style={{ backgroundColor: plant.color + "22" }}>
+                {plant.emoji}
+              </div>
+              <p className="font-display text-base font-semibold text-foreground">{plant.name}</p>
+              <p className="text-xs text-muted-foreground font-body mt-0.5">{plant.category}</p>
+              <div className="mt-2 flex items-center gap-1">
+                <Icon name="Calendar" size={11} className="text-muted-foreground" />
+                <span className="text-[11px] font-body text-muted-foreground">{plant.season}</span>
+              </div>
+            </button>
+          ))}
+
+          {filtered.length === 0 && (
+            <div className="col-span-2 bg-card border border-dashed border-border rounded-2xl p-8 text-center">
+              <span className="text-3xl block mb-2">🌱</span>
+              <p className="text-sm font-body text-muted-foreground">Ничего не найдено</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Modal */}
       {(selectedPlant || isFormMode) && (
@@ -239,8 +245,8 @@ export default function PlantCatalog() {
                       <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-body text-muted-foreground">
                         Отмена
                       </button>
-                      <button onClick={deletePlant} className="flex-1 py-2.5 rounded-xl bg-destructive text-white text-sm font-body font-medium">
-                        Удалить
+                      <button onClick={handleDelete} disabled={saving} className="flex-1 py-2.5 rounded-xl bg-destructive text-white text-sm font-body font-medium disabled:opacity-60">
+                        {saving ? "Удаляю..." : "Удалить"}
                       </button>
                     </div>
                   ) : (
@@ -284,7 +290,6 @@ export default function PlantCatalog() {
                   <div className="space-y-3">
                     {field("Название *", "name", "Например: Баклажан")}
 
-                    {/* Category select */}
                     <div>
                       <label className="text-xs font-body text-muted-foreground mb-1 block">Категория</label>
                       <div className="flex flex-wrap gap-1.5">
@@ -313,7 +318,6 @@ export default function PlantCatalog() {
                       {field("Созревание", "maturity", "60-80 дней")}
                     </div>
 
-                    {/* Tips */}
                     <div>
                       <label className="text-xs font-body text-muted-foreground mb-1 block">Советы по уходу</label>
                       <textarea
@@ -325,7 +329,6 @@ export default function PlantCatalog() {
                       />
                     </div>
 
-                    {/* Color picker */}
                     <div>
                       <label className="text-xs font-body text-muted-foreground mb-2 block">Цвет карточки</label>
                       <div className="flex gap-2 flex-wrap">
@@ -343,10 +346,10 @@ export default function PlantCatalog() {
 
                   <button
                     onClick={modalMode === "edit" ? saveEdit : saveAdd}
-                    disabled={!formData.name}
+                    disabled={!formData.name || saving}
                     className="w-full py-3 bg-moss text-white rounded-xl font-body font-medium text-sm mt-4 hover:opacity-90 transition-opacity disabled:opacity-40"
                   >
-                    {modalMode === "edit" ? "Сохранить изменения" : "Добавить в каталог"}
+                    {saving ? "Сохраняю..." : modalMode === "edit" ? "Сохранить изменения" : "Добавить в каталог"}
                   </button>
                 </>
               )}
